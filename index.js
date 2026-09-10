@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const shortid = require('shortid');
-
+const path = require("path");
 
 const app = express();
 
@@ -32,8 +32,22 @@ const url_details = new mongoose.Schema({
 const user_details = mongoose.model('url_details', url_details)
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
+
+app.set("view engine", "ejs");
+app.set('views', path.resolve("./views"));
+
+app.get("/url/frontend", async (req, res) => {
+  const allUrls = await user_details.find({});
+  return res.render('./home.ejs', {
+    Urls: allUrls,
+  })
+})
+
+app.get("/", async (req, res) => {
+  return res.render("client.ejs")
+})
 // #important##
 // we can also don't pass the redirectingurl through the route and pass
 // it through the body it will remove the long link with / problem
@@ -49,7 +63,7 @@ app.post("/:url", async (req, res) => {
     analytics_data: [],
   })
   console.log(result);
-  return res.status(200).json({ msg: "Sucess url uploaded", shortUrl });
+  return res.status(200).render("client", { id: shortUrl })
 })
 
 app.get("/:url", async (req, res) => {

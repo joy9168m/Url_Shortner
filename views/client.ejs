@@ -3,19 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>URL Shortener</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+
+    body {
+      background-image: url('/green.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      padding: 3rem 1rem;
+    }
+
+    .card {
+      background: rgba(18, 18, 18, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 800px;
+      height: fit-content;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    h1 {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border-radius: 5px;
+      border: 1px solid #444;
+      background: #111;
+      color: #fff;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 5px;
+      background: #22c55e;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    li {
+      padding: 0.8rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      word-break: break-all;
+    }
+  </style>
 </head>
 <body>
-  <h1>URL Shortener</h1>
-  <% if (locals.id) { %>
-  <p> URL Generated : http://localhost:8000/<%= id %></p> 
-  <% } %>
-  <div>
-   <form method="POST" action="/url">
-   <label>Enter your url here</label>
-      <input type="text" name="url" placeholder="www.example.com">
-        <button type="submit">submit</button>
-   </form>
+
+  <div class="card">
+    <h1>URL Shortener</h1>
+
+    <% if (locals.id) { %>
+      <p style="margin-bottom: 1rem; color: #4ade80;">
+        URL Generated: <a href="http://localhost:8000/<%= id %>" target="_blank">http://localhost:8000/<%= id %></a>
+      </p>
+    <% } %>
+
+    <form method="POST" action="/url" class="form-box">
+      <input type="text" name="url" placeholder="www.example.com" required>
+      <button type="submit">Submit</button>
+    </form>
+
+    <% if (locals.urls && urls.length > 0) { %>
+      <ul>
+        <% urls.forEach(url => { %>
+          <li>
+            <span><a href="/<%= url.shortUrl %>" target="_blank"><%= url.shortUrl %></a> &rarr; <%= url.redirectingUrl %></span>
+            <strong><%= url.totalClicks %> Clicks</strong>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
   </div>
+
 </body>
 </html>

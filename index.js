@@ -32,8 +32,8 @@ const url_details = new mongoose.Schema({
 const user_details = mongoose.model('url_details', url_details)
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
 app.set('views', path.resolve("./views"));
@@ -46,24 +46,34 @@ app.get("/url/frontend", async (req, res) => {
 })
 
 app.get("/", async (req, res) => {
-  return res.render("client.ejs")
+  const allUrls = await user_details.find({});
+  return res.render("client.ejs", { urls: allUrls })
 })
 // #important##
 // we can also don't pass the redirectingurl through the route and pass
 // it through the body it will remove the long link with / problem
 app.post("/:url", async (req, res) => {
   let redirectingUrl = req.body.url;
-  const shortUrl = shortid.generate(8);
-  if (!/^https?:\/\//i.test(redirectingUrl)) {
-    redirectingUrl = 'https://' + redirectingUrl;
+  if (redirectingUrl === "") {
+    return res.status(404).json({ error: "dont leave it blank" })
+  } else {
+    const shortUrl = shortid.generate(8);
+    if (!/^https?:\/\//i.test(redirectingUrl)) {
+      redirectingUrl = 'https://' + redirectingUrl;
+    }
+    const existingUrl = await user_details.findOne({ redirectingUrl: redirectingUrl });
+    if (existingUrl) {
+      return res.redirect("/");
+    }
+    const result = await user_details.create({
+      shortUrl: shortUrl,
+      redirectingUrl: redirectingUrl,
+      analytics_data: [],
+    })
+    console.log(result);
+    const updatedUrls = await user_details.find({});
+    return res.status(200).render("client", { id: shortUrl, urls: updatedUrls })
   }
-  const result = await user_details.create({
-    shortUrl: shortUrl,
-    redirectingUrl: redirectingUrl,
-    analytics_data: [],
-  })
-  console.log(result);
-  return res.status(200).render("client", { id: shortUrl })
 })
 
 app.get("/:url", async (req, res) => {

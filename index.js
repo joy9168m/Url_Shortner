@@ -2,6 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const shortid = require('shortid');
 const path = require("path");
+const cookieParser = require("cookie-parser");
+const { setUser, getUser } = require("./services/auth.js");
+const { restrictToLoggedinUserOnly, checkAuth } = require("./middleware/auth.js");
 
 const app = express();
 
@@ -23,6 +26,11 @@ const url_details = new mongoose.Schema({
   totalClicks: {
     type: Number,
     default: 0,
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "login_details",
+    required: true,
   },
   analytics_data: [{
     timestamp: { type: Number }
@@ -52,21 +60,22 @@ const user_login_details = mongoose.model('login_details', login_details)
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser())
 app.use(express.static(path.join(__dirname, "public")));
 
 app.set("view engine", "ejs");
 app.set('views', path.resolve("./views"));
 
-app.get("/url/frontend", async (req, res) => {
+app.get("/url/frontend", restrictToLoggedinUserOnly, async (req, res) => {
   const allUrls = await user_details.find({});
   return res.render('./home.ejs', {
     Urls: allUrls,
   })
 })
 
-app.get("/", async (req, res) => {
-  const allUrls = await user_details.find({});
-  return res.render("client.ejs", { urls: allUrls })
+app.get("/", checkAuth, async (req, res) => {
+  const userUrls = await user_details.find({ createdBy: req.user._id });
+  return res.render("client.ejs", { urls: userUrls, user: req.user })
 })
 
 app.get("/login", async (req, res) => {
@@ -102,15 +111,23 @@ app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await user_login_details.findOne({ email, password })
   if (!user) {
-    res.render("login.ejs");
-  } else {
-    res.redirect("/")
+    return res.render("login.ejs");
   }
+  const userPayload = {
+    _id: user._id.toString(),
+    email: user.email,
+    name: user.name,
+  };
+
+  const token = setUser(userPayload);
+  res.cookie("token", token);
+
+  res.redirect("/")
 })
 // #important##
 // we can also don't pass the redirectingurl through the route and pass
 // it through the body it will remove the long link with / problem
-app.post("/url", async (req, res) => {
+app.post("/url", restrictToLoggedinUserOnly, async (req, res) => {
   let redirectingUrl = req.body.url;
   if (redirectingUrl === "") {
     return res.status(404).json({ error: "dont leave it blank" })
@@ -126,10 +143,11 @@ app.post("/url", async (req, res) => {
     const result = await user_details.create({
       shortUrl: shortUrl,
       redirectingUrl: redirectingUrl,
+      createdBy: req.user._id,
       analytics_data: [],
     })
     console.log(result);
-    const updatedUrls = await user_details.find({});
+    const updatedUrls = await user_details.find({ createdBy: req.user._id });
     return res.status(200).render("client", { id: shortUrl, urls: updatedUrls })
   }
 })
@@ -152,7 +170,7 @@ app.get("/:url", async (req, res) => {
     res.status(404).json({ error: "Wrong shortId" });
   }
 })
-app.delete("/:id", async (req, res) => {
+app.delete("/:id", restrictToLoggedinUserOnly, async (req, res) => {
   const id = req.params.id;
 
   const deletedRedUrl = await user_details.findByIdAndDelete(id);

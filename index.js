@@ -28,8 +28,27 @@ const url_details = new mongoose.Schema({
     timestamp: { type: Number }
   }],
 }, { timestamps: true })
+
+const login_details = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    unique: true,
+    required: true,
+  },
+  password: {
+    type: String,
+  },
+}, { timestamps: true })
+
+
+
 //model
 const user_details = mongoose.model('url_details', url_details)
+const user_login_details = mongoose.model('login_details', login_details)
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -49,10 +68,49 @@ app.get("/", async (req, res) => {
   const allUrls = await user_details.find({});
   return res.render("client.ejs", { urls: allUrls })
 })
+
+app.get("/login", async (req, res) => {
+  // const login = await user_login_details.find({});
+  return res.render("login.ejs")
+})
+
+app.get("/signup", async (req, res) => {
+  return res.render("signup.ejs")
+})
+
+app.post("/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const user = await user_login_details.create({
+      name: name,
+      email: email,
+      password: password,
+    });
+
+    return res.render("login.ejs");
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).send("An account with this email already exists.");
+    }
+    console.error("Signup error:", error);
+    return res.status(500).send("Server Error");
+  }
+})
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  const user = await user_login_details.findOne({ email, password })
+  if (!user) {
+    res.render("login.ejs");
+  } else {
+    res.redirect("/")
+  }
+})
 // #important##
 // we can also don't pass the redirectingurl through the route and pass
 // it through the body it will remove the long link with / problem
-app.post("/:url", async (req, res) => {
+app.post("/url", async (req, res) => {
   let redirectingUrl = req.body.url;
   if (redirectingUrl === "") {
     return res.status(404).json({ error: "dont leave it blank" })

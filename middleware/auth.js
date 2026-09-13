@@ -17,14 +17,25 @@ async function restrictToLoggedinUserOnly(req, res, next) {
   next();
 }
 
-async function checkAuth(req, res, next) {
-  const token = req.cookies?.token;
-  const user = getUser(token);
-  req.user = user;
-  next();
+function resrictTo(roles = []) {
+  return function(req, res, next) {
+    if (!req.user) return res.redirect("/login");
+
+    if (!roles.includes(req.user.role)) return res.end("Unauthorized");
+
+    return next();
+  }
 }
+
+// async function checkAuth(req, res, next) {
+//   const token = req.cookies?.token;
+//   const user = getUser(token);
+//   req.user = user;
+//   next();
+// }
 
 module.exports = {
   restrictToLoggedinUserOnly,
-  checkAuth,
+  resrictTo,
+  // checkAuth,
 };

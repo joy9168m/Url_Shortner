@@ -4,7 +4,7 @@ const shortid = require('shortid');
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const { setUser, getUser } = require("./services/auth.js");
-const { restrictToLoggedinUserOnly, checkAuth } = require("./middleware/auth.js");
+const { restrictToLoggedinUserOnly, resrictTo } = require("./middleware/auth.js");
 
 const app = express();
 
@@ -50,6 +50,11 @@ const login_details = new mongoose.Schema({
   password: {
     type: String,
   },
+  role: {
+    type: String,
+    required: true,
+    default: "NORMAL",
+  },
 }, { timestamps: true })
 
 
@@ -66,14 +71,14 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set('views', path.resolve("./views"));
 
-app.get("/url/frontend", restrictToLoggedinUserOnly, async (req, res) => {
+app.get("/admin/urls", restrictToLoggedinUserOnly, resrictTo(["ADMIN"]), async (req, res) => {
   const allUrls = await user_details.find({});
-  return res.render('./home.ejs', {
-    Urls: allUrls,
+  return res.render('client.ejs', {
+    urls: allUrls,
   })
 })
 
-app.get("/", checkAuth, async (req, res) => {
+app.get("/", restrictToLoggedinUserOnly, resrictTo(["NORMAL", "ADMIN"]), async (req, res) => {
   const userUrls = await user_details.find({ createdBy: req.user._id });
   return res.render("client.ejs", { urls: userUrls, user: req.user })
 })
@@ -117,6 +122,7 @@ app.post("/login", async (req, res) => {
     _id: user._id.toString(),
     email: user.email,
     name: user.name,
+    role: user.role,
   };
 
   const token = setUser(userPayload);
@@ -127,7 +133,7 @@ app.post("/login", async (req, res) => {
 // #important##
 // we can also don't pass the redirectingurl through the route and pass
 // it through the body it will remove the long link with / problem
-app.post("/url", restrictToLoggedinUserOnly, async (req, res) => {
+app.post("/url", restrictToLoggedinUserOnly, resrictTo(["NORMAL", "ADMIN"]), async (req, res) => {
   let redirectingUrl = req.body.url;
   if (redirectingUrl === "") {
     return res.status(404).json({ error: "dont leave it blank" })
@@ -170,7 +176,7 @@ app.get("/:url", async (req, res) => {
     res.status(404).json({ error: "Wrong shortId" });
   }
 })
-app.delete("/:id", restrictToLoggedinUserOnly, async (req, res) => {
+app.delete("/:id", restrictToLoggedinUserOnly, resrictTo(["ADMIN"]), async (req, res) => {
   const id = req.params.id;
 
   const deletedRedUrl = await user_details.findByIdAndDelete(id);
@@ -181,7 +187,7 @@ app.delete("/:id", restrictToLoggedinUserOnly, async (req, res) => {
     return res.status(201).json({ msg: "User deleted", deletedRedUrl });
   }
 })
-app.get("/analytics/:id", async (req, res) => {
+app.get("/analytics/:id", restrictToLoggedinUserOnly, resrictTo(["ADMIN"]), async (req, res) => {
   const shortId = req.params.id;
   const entry = await user_details.findOne(
     { shortUrl: shortId },

@@ -144,6 +144,10 @@ app.post("/url", restrictToLoggedinUserOnly, resrictTo(["NORMAL", "ADMIN"]), asy
     }
     const existingUrl = await user_details.findOne({ redirectingUrl: redirectingUrl });
     if (existingUrl) {
+      // Check if Bot is requesting on duplicate url
+      if (req.headers.accept?.includes("application/json") || req.headers["content-type"] === "application/json") {
+        return res.status(200).json({ id: existingUrl.shortUrl, shortUrl: existingUrl.shortUrl });
+      }
       return res.redirect("/");
     }
     const result = await user_details.create({
@@ -152,6 +156,10 @@ app.post("/url", restrictToLoggedinUserOnly, resrictTo(["NORMAL", "ADMIN"]), asy
       createdBy: req.user._id,
       analytics_data: [],
     })
+    // It checking if request comes from Discord Bot
+    if (req.headers.accept?.includes("application/json") || req.headers["content-type"] === "application/json") {
+      return res.status(201).json({ id: shortUrl, shortUrl: shortUrl });
+    }
     console.log(result);
     const updatedUrls = await user_details.find({ createdBy: req.user._id });
     return res.status(200).render("client", { id: shortUrl, urls: updatedUrls })
@@ -184,6 +192,7 @@ app.delete("/:id", restrictToLoggedinUserOnly, resrictTo(["ADMIN"]), async (req,
   if (!deletedRedUrl) {
     return res.status(500).json({ msg: "Failed to delete" });
   } else {
+    https://www.youtube.com/watch?v=cnzka7kF5Zk
     return res.status(201).json({ msg: "User deleted", deletedRedUrl });
   }
 })
